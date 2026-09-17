@@ -1314,10 +1314,8 @@ function shareWA() {
   const msg = lines.join('\n');
 
   // Картинка (3D-визуализация) — берём из скрытого img-элемента
-  const imgEl3d   = apt.imgIds ? document.getElementById(apt.imgIds[0]) : null;
-  const imgElPlan = apt.imgIds ? document.getElementById(apt.imgIds[1]) : null;
-  const imgSrc3d   = imgEl3d ? imgEl3d.src : '';
-  const imgSrcPlan = imgElPlan ? imgElPlan.src : '';
+  const imgEl = apt.imgIds ? document.getElementById(apt.imgIds[0]) : null;
+  const imgSrc = imgEl ? imgEl.src : '';
 
   // Конвертация data:URI в Blob
   function dataURItoBlob(uri) {
@@ -1331,31 +1329,21 @@ function shareWA() {
     } catch(e) { return null; }
   }
 
-  // Приводим src (data:URI или обычный URL) к Blob
-  function srcToBlob(src) {
-    if (!src) return Promise.resolve(null);
-    return src.indexOf('data:') === 0
-      ? Promise.resolve(dataURItoBlob(src))
-      : fetch(src).then(function(r) { if (!r.ok) throw new Error(); return r.blob(); });
-  }
-
-  // Web Share API с картинками (3D + план) → fallback на wa.me
+  // Web Share API с картинкой → fallback на wa.me
   const tryShareWithImage = function() {
-    if (!navigator.canShare || (!imgSrc3d && !imgSrcPlan)) return Promise.reject();
+    if (!navigator.canShare || !imgSrc) return Promise.reject();
 
-    return Promise.all([srcToBlob(imgSrc3d), srcToBlob(imgSrcPlan)]).then(function(blobs) {
-      const files = [];
-      if (blobs[0]) files.push(new File([blobs[0]], 'apt_' + apt.area + 'm2_3d.jpg', { type: blobs[0].type || 'image/jpeg' }));
-      if (blobs[1]) files.push(new File([blobs[1]], 'apt_' + apt.area + 'm2_plan.jpg', { type: blobs[1].type || 'image/jpeg' }));
-      if (!files.length) throw new Error('no files');
+    // Поддержка и data:URI и обычных URL
+    const blobPromise = imgSrc.indexOf('data:') === 0
+      ? Promise.resolve(dataURItoBlob(imgSrc))
+      : fetch(imgSrc).then(function(r) { if (!r.ok) throw new Error(); return r.blob(); });
 
-      const data = { files: files, text: msg, title: 'ЖК «Бирлик»' };
-      if (navigator.canShare(data)) return navigator.share(data);
-
-      // некоторые браузеры не умеют шарить несколько файлов сразу — пробуем по одному
-      const single = { files: [files[0]], text: msg, title: 'ЖК «Бирлик»' };
-      if (navigator.canShare(single)) return navigator.share(single);
-      throw new Error('cannot share files');
+    return blobPromise.then(function(blob) {
+      if (!blob) throw new Error('no blob');
+      const file = new File([blob], 'apt_' + apt.area + 'm2.jpg', { type: blob.type || 'image/jpeg' });
+      const data = { files: [file], text: msg, title: 'ЖК «Бирлик»' };
+      if (!navigator.canShare(data)) throw new Error('cannot share files');
+      return navigator.share(data);
     });
   };
 
