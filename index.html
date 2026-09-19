@@ -814,17 +814,17 @@ footer .hours { margin-top: 4px; font-size: .76rem; }
    DATA
 ───────────────────────────────────────────── */
 const apartments = [
-  { id: 1,  name: "Однокомнатная", area: 40.3, terms: [45,90], minDown: {45: 350000, 90: 250000}, imgIds: ["img-403-3d", "img-403-plan"] },
-  { id: 2,  name: "Однокомнатная", area: 41.3, terms: [45,90], minDown: {45: 350000, 90: 250000}, imgIds: ["img-413-3d", "img-413-plan"] },
-  { id: 3,  name: "Однокомнатная", area: 41.4, terms: [45,90], minDown: {45: 350000, 90: 250000}, imgIds: ["img-414-3d", "img-414-plan"] },
-  { id: 4,  name: "Однокомнатная", area: 41.8, terms: [45,90], minDown: {45: 350000, 90: 250000}, imgIds: ["img-418-3d", "img-418-plan"] },
+  { id: 1,  name: "Однокомнатная", area: 40.3, terms: [45,90], rates: {45:70000, 90:80000}, minDown: {45: 350000, 90: 250000}, imgIds: ["img-403-3d", "img-403-plan"] },
+  { id: 2,  name: "Однокомнатная", area: 41.3, terms: [45,90], rates: {45:70000, 90:80000}, minDown: {45: 350000, 90: 250000}, imgIds: ["img-413-3d", "img-413-plan"] },
+  { id: 3,  name: "Однокомнатная", area: 41.4, terms: [45,90], rates: {45:70000, 90:80000}, minDown: {45: 350000, 90: 250000}, imgIds: ["img-414-3d", "img-414-plan"] },
+  { id: 4,  name: "Однокомнатная", area: 41.8, terms: [45,90], rates: {45:70000, 90:80000}, minDown: {45: 350000, 90: 250000}, imgIds: ["img-418-3d", "img-418-plan"] },
   { id: 5,  name: "Евродвушка",    area: 38.8, terms: [45,90], minDown: {45: 300000, 90: 250000}, imgIds: ["img-388-3d", "img-388-plan"] },
   { id: 6,  name: "Евродвушка",    area: 42.5, terms: [45,90], minDown: {45: 350000, 90: 300000}, imgIds: ["img-425-3d", "img-425-plan"] },
-  { id: 7,  name: "Двухкомнатная", area: 61.4, terms: [45,90], minDown: {45: 600000, 90: 400000}, imgIds: ["img-614-3d", "img-614-plan"] },
+  { id: 7,  name: "Двухкомнатная", area: 61.4, terms: [45,90], rates: {45:70000, 90:80000}, minDown: {45: 600000, 90: 400000}, imgIds: ["img-614-3d", "img-614-plan"] },
   { id: 8,  name: "Евротрёшка",    area: 65.8, terms: [45,90], minDown: {45: 600000, 90: 400000}, imgIds: ["img-658-3d", "img-658-plan"] },
   { id: 9,  name: "Евротрёшка",    area: 68.8, terms: [45,90], minDown: {45: 600000, 90: 450000}, imgIds: ["img-688-3d", "img-688-plan"] },
   { id: 10, name: "Евротрёшка",    area: 74.2, terms: [45,90], minDown: {45: 700000, 90: 500000}, imgIds: ["img-742-3d", "img-742-plan"] },
-  { id: 11, name: "Трёхкомнатная", area: 78.9, terms: [45,90], minDown: {45: 700000, 90: 500000}, imgIds: ["img-789-3d", "img-789-plan"] },
+  { id: 11, name: "Трёхкомнатная", area: 78.9, terms: [45,90], rates: {45:70000, 90:80000}, minDown: {45: 700000, 90: 500000}, imgIds: ["img-789-3d", "img-789-plan"] },
   { id: 12, name: "Еврочетыре",    area: 82.3, terms: [45,90], minDown: {45: 800000, 90: 500000}, imgIds: ["img-823-3d", "img-823-plan"] }
 ];
 
@@ -880,11 +880,12 @@ const minDownFor = (apt, term) => {
 };
 
 /** Total price for apartment + term */
-const totalPrice = (area, term) => area * rates[term];
+const getRates = apt => (apt && apt.rates) || rates;
+const totalPrice = (apt, term) => apt.area * getRates(apt)[term];
 
 /** Standard monthly payment after down payment */
-const stdMonthly = (area, term, down) =>
-  Math.round((totalPrice(area, term) - down) / term * 100) / 100;
+const stdMonthly = (apt, term, down) =>
+  Math.round((totalPrice(apt, term) - down) / term * 100) / 100;
 
 /** How many 10th-month events in `term` months */
 const tenthCount = term => Math.floor(term / 10);
@@ -964,7 +965,7 @@ function renderCards() {
       const terms  = availableTerms(apt);
 
       let pricesHtml = terms.map(t => {
-        const tot = totalPrice(apt.area, t);
+        const tot = totalPrice(apt, t);
         const minDown = minDownFor(apt, t);
         const mon = Math.round((tot - minDown) / t * 100) / 100;
         return `<div class="price-row">
@@ -1035,7 +1036,7 @@ function renderCalc() {
 
   // ── Term tabs HTML ──
   const tabsHtml = terms.map(t => {
-    const total = totalPrice(apt.area, t);
+    const total = totalPrice(apt, t);
     const active = t === term ? ' active' : '';
     return `
       <div class="term-tab${active}" data-term="${t}">
@@ -1220,12 +1221,12 @@ function shareWA() {
   const { apt, term, downPayment } = state;
   if (!apt || !term) return;
 
-  const base = totalPrice(apt.area, term);
+  const base = totalPrice(apt, term);
   const disc = state.discount || 0;
   const total = Math.round(base * (1 - disc / 100) * 100) / 100;
   const remain = Math.max(0, total - downPayment);
   const monthly = Math.round(remain / term * 100) / 100;
-  const pricePerM = rates[term];
+  const pricePerM = getRates(apt)[term];
 
   // matcap-adjusted effective values for alt calculations
   let effRemainWA = remain, effTermWA = term, effMonWA = monthly;
@@ -1360,7 +1361,7 @@ function printCalc() {
   const { apt, term, downPayment } = state;
   if (!apt || !term) return;
 
-  const base = totalPrice(apt.area, term);
+  const base = totalPrice(apt, term);
   const disc = state.discount || 0;
   const total = Math.round(base * (1 - disc/100) * 100) / 100;
   const remain = Math.max(0, total - downPayment);
@@ -1574,7 +1575,7 @@ function renderResult() {
   if (!apt || !term) return;
 
   const discountFactor = 1 - (state.discount || 0) / 100;
-  const total    = Math.round(totalPrice(apt.area, term) * discountFactor * 100) / 100;
+  const total    = Math.round(totalPrice(apt, term) * discountFactor * 100) / 100;
   const remain   = Math.max(0, total - downPayment);
   const monthly  = Math.round(remain / term * 100) / 100;
   const nthCount = tenthCount(term);
@@ -1691,14 +1692,14 @@ function renderResult() {
     <div class="divider"></div>
     <div class="result-box">
       <h3>${title}</h3>
-      ${state.discount > 0 ? `<div style="margin-bottom:10px"><span class="discount-badge">🎉 Скидка ${state.discount}% — экономия ${fmt(Math.round(totalPrice(apt.area, term) * state.discount / 100))}</span></div>` : ''}
+      ${state.discount > 0 ? `<div style="margin-bottom:10px"><span class="discount-badge">🎉 Скидка ${state.discount}% — экономия ${fmt(Math.round(totalPrice(apt, term) * state.discount / 100))}</span></div>` : ''}
       <div class="payment-row">
         <div class="payment-col">
           <div class="p-label">Общая стоимость квартиры</div>
         </div>
         <div>
           <div class="p-amount fmt">${fmt(total)}</div>
-          <div class="p-sub">${apt.area} м² × ${fmt(rates[term]).replace(' ₽','')} ₽/м²</div>
+          <div class="p-sub">${apt.area} м² × ${fmt(getRates(apt)[term]).replace(' ₽','')} ₽/м²</div>
         </div>
       </div>
       <div class="payment-row">
@@ -1762,7 +1763,7 @@ function computeAlt() {
   if (!apt || !term) return;
 
   const discountFactor = 1 - (state.discount || 0) / 100;
-  const total    = Math.round(totalPrice(apt.area, term) * discountFactor * 100) / 100;
+  const total    = Math.round(totalPrice(apt, term) * discountFactor * 100) / 100;
   const remain   = Math.max(0, total - downPayment);
   const stdMon   = Math.round(remain / term * 100) / 100;
 
